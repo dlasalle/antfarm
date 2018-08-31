@@ -59,6 +59,33 @@ class Actor : public KinematicBody2D
     void apply_impulse(
         Vector2 p_impulse);
 
+    void set_falling(
+        bool fall);
+
+    bool is_falling() const;
+
+    int get_biomass() const;
+
+    int set_biomass(
+        int p_biomass);
+
+    float get_jump_speed() const;
+        
+    void set_jump_speed(
+        float p_speed);
+
+    float get_run_speed() const;
+        
+    void set_run_speed(
+        float p_speed);
+
+    void jump();
+
+    void set_movement(
+        int p_move);
+
+    int get_movement() const;
+
   protected:
     static void _bind_methods();
 
@@ -69,7 +96,12 @@ class Actor : public KinematicBody2D
     int m_hitpoints;
     int m_current_hitpoints;
     int m_biomass;
+    float m_jump_speed;
+    float m_run_speed;
     bool m_facing_right;
+    bool m_falling;
+    bool m_jump_triggered;
+    int m_horizontal_move;
     Vector2 m_velocity;
 };
 

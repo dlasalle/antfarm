@@ -10,6 +10,7 @@
 #include "Actor.hpp"
 
 #include "string_db.h"
+#include "servers/physics_2d_server.h"
 
 #include <algorithm>
 
@@ -36,7 +37,13 @@ ActorSignals * ActorSignals::singleton()
 Actor::Actor() :
   m_hitpoints(1),
   m_current_hitpoints(1),
+  m_biomass(1),
   m_facing_right(false),
+  m_jump_speed(100.0),
+  m_run_speed(75.0),
+  m_falling(true),
+  m_jump_triggered(false),
+  m_horizontal_move(0),
   m_velocity(0,0)
 {
   // do nothing
@@ -123,6 +130,56 @@ void Actor::apply_impulse(
 }
 
 
+void Actor::set_falling(
+    bool const p_fall)
+{
+  m_falling = p_fall;
+}
+
+bool Actor::is_falling() const
+{
+  return m_falling;
+}
+
+float Actor::get_jump_speed() const
+{
+  return m_jump_speed;
+}
+    
+void Actor::set_jump_speed(
+    float const p_speed)
+{
+  m_jump_speed = p_speed;
+}
+
+float Actor::get_run_speed() const
+{
+  return m_run_speed;
+}
+    
+void Actor::set_run_speed(
+    float const p_speed)
+{
+  m_run_speed = p_speed;
+}
+
+void Actor::jump()
+{
+  m_jump_triggered = true;
+}
+
+void Actor::set_movement(
+    int p_move)
+{
+  m_horizontal_move = p_move;
+}
+
+int Actor::get_movement() const
+{
+  return m_horizontal_move;
+}
+
+
 
 /******************************************************************************
 * PROTECTED STATIC METHODS ****************************************************
@@ -151,6 +208,23 @@ void Actor::_bind_methods()
 	ClassDB::bind_method(D_METHOD("apply_impulse", "impulse"), \
       &Actor::apply_impulse);
 
+	ClassDB::bind_method(D_METHOD("set_falling", "fall"), \
+      &Actor::set_falling);
+	ClassDB::bind_method(D_METHOD("is_falling"), &Actor::is_falling);
+
+  ClassDB::bind_method(D_METHOD("set_jump_speed", "speed"), \
+      &Actor::set_jump_speed);
+  ClassDB::bind_method(D_METHOD("get_jump_speed"), &Actor::get_jump_speed);
+
+  ClassDB::bind_method(D_METHOD("set_run_speed", "speed"), \
+      &Actor::set_run_speed);
+  ClassDB::bind_method(D_METHOD("get_run_speed"), &Actor::get_run_speed);
+
+  ClassDB::bind_method(D_METHOD("jump"), &Actor::jump);
+
+  ClassDB::bind_method(D_METHOD("set_movement", "move"), &Actor::set_movement);
+  ClassDB::bind_method(D_METHOD("get_movement"), &Actor::get_movement);
+
 	ADD_SIGNAL(MethodInfo("died"));
 	ADD_SIGNAL(MethodInfo("damaged", PropertyInfo(Variant::INT, "points"), \
       PropertyInfo(Variant::VECTOR2, "position")));
@@ -158,6 +232,18 @@ void Actor::_bind_methods()
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hitpoints", PROPERTY_HINT_RANGE, \
       "1,100000"), "set_hitpoints", "get_hitpoints");
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "biomass", PROPERTY_HINT_RANGE, \
+      "0,100000"), "set_biomass", "get_biomass");
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "jump_speed", PROPERTY_HINT_RANGE, \
+      "0,1000.0"), "set_jump_speed", "get_jump_speed");
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "run_speed", PROPERTY_HINT_RANGE, \
+      "0,1000.0"), "set_run_speed", "get_run_speed");
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "falling"), "set_falling",
+      "is_falling");
 }
 
 
@@ -171,7 +257,26 @@ void Actor::_notification(
   switch (p_notification)
   {
     case NOTIFICATION_PHYSICS_PROCESS: {
+      if (m_jump_triggered) {
+        if (is_on_floor()) {
+          m_velocity += Vector2(0, -m_jump_speed);
+        }
+        m_jump_triggered = false;
+      }
+
+      if (m_falling) {
+        Physics2DDirectBodyState * const state = \
+            Physics2DServer::get_singleton()->body_get_direct_state(get_rid());
+        Vector2 const gravity = state->get_total_gravity();
+        m_velocity += gravity*get_physics_process_delta_time();
+      }
+
+      if (is_on_floor()) {
+        m_velocity.x = m_run_speed*m_horizontal_move;
+      }
+
       if (m_velocity.length_squared() > 0) {
+        // move actor
         m_velocity = move_and_slide(m_velocity, Vector2(0, -1.0), false);
       }
     }
