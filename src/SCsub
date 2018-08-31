@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+
+import glob
+
+Import('env')
+
+sources = glob.glob("*.cpp")
+
+env_antfarm = env.Clone()
+env_antfarm.Append(CXXCFLAGS=["-O2", "-std=c++11", "-Werror", "-Wall"])
+
+if ARGUMENTS.get("antfarm_shared", "no") == "yes":
+    env_antfarm.Append(CXXFLAGS="-fPIC")
+
+    shared_lib = env_antfarm.SharedLibrary(target="#bin/antfarm", source=sources)
+
+
+    shared_lib_shim = shared_lib[0].name.rsplit(".", 1)[0]
+    env_antfarm.Append(LIBS=[shared_lib_shim])
+    env_antfarm.Append(LIBPATH="#bin")
+
+else:
+    env_antfarm.add_source_files(env.modules_sources, sources)
